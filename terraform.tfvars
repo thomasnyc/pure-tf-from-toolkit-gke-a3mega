@@ -16,11 +16,13 @@
 
 authorized_cidr = "0.0.0.0/0"
 
-deployment_name = "gke-a3-mega"
+deployment_name = "gke-a3-tl-mega"
+
+extended_reservation = "gce-h100-reservation"
 
 labels = {
-  ghpc_blueprint  = "gke-a3-mega"
-  ghpc_deployment = "gke-a3-mega"
+  ghpc_blueprint  = "gke-a3-mega-reservation"
+  ghpc_deployment = "gke-a3-tl-mega"
 }
 
 project_id = "thomashk-mig"

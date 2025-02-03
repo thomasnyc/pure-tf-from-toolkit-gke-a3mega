@@ -61,10 +61,16 @@ module "gke_cluster" {
 module "a3-megagpu_pool" {
   source                      = "./modules/embedded/modules/compute/gke-node-pool"
   additional_networks         = flatten([module.gpunets.additional_networks])
-  autoscaling_total_min_nodes = 4
+  autoscaling_total_min_nodes = 2
   cluster_id                  = module.gke_cluster.cluster_id
   labels                      = var.labels
   machine_type                = "a3-megagpu-8g"
   project_id                  = var.project_id
-  zones                       = [var.zone]
+  reservation_affinity = {
+    consume_reservation_type = "SPECIFIC_RESERVATION"
+    specific_reservations = [{
+      name = var.extended_reservation
+    }]
+  }
+  zones = [var.zone]
 }

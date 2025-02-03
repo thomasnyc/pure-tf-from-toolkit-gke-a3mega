@@ -24,6 +24,11 @@ variable "deployment_name" {
   type        = string
 }
 
+variable "extended_reservation" {
+  description = "Toolkit deployment variable: extended_reservation"
+  type        = string
+}
+
 variable "labels" {
   description = "Toolkit deployment variable: labels"
   type        = any
