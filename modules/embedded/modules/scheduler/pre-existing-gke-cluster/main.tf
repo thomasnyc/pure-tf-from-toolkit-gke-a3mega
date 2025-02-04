@@ -20,51 +20,51 @@ data "google_container_cluster" "existing_gke_cluster" {
   location = var.region
 }
 
-data "google_client_config" "default" {}
+locals {
+  rdma_networks     = [for network_info in var.additional_networks : network_info if strcontains(upper(network_info.nic_type), "RDMA")]
+  non_rdma_networks = [for network_info in var.additional_networks : network_info if !strcontains(upper(network_info.nic_type), "RDMA")]
+  apply_manifests_rdma_networks = flatten([
+    for idx, network_info in local.rdma_networks : [
+      {
+        source = "${path.module}/templates/gke-network-paramset.yaml.tftpl",
+        template_vars = {
+          name            = "${var.rdma_subnetwork_name_prefix}-${idx}",
+          network_name    = network_info.network
+          subnetwork_name = "${var.rdma_subnetwork_name_prefix}-${idx}",
+          device_mode     = "RDMA"
+        }
+      },
+      {
+        source        = "${path.module}/templates/network-object.yaml.tftpl",
+        template_vars = { name = "${var.rdma_subnetwork_name_prefix}-${idx}" }
+      }
+    ]
+  ])
 
-provider "kubectl" {
-  host                   = "https://${data.google_container_cluster.existing_gke_cluster.endpoint}"
-  token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(data.google_container_cluster.existing_gke_cluster.master_auth[0].cluster_ca_certificate)
-  load_config_file       = false
+  apply_manifests_non_rdma_networks = flatten([
+    for idx, network_info in local.non_rdma_networks : [
+      {
+        source = "${path.module}/templates/gke-network-paramset.yaml.tftpl",
+        template_vars = {
+          name            = network_info.subnetwork
+          network_name    = network_info.network
+          subnetwork_name = network_info.subnetwork
+          device_mode     = "NetDevice"
+        }
+      },
+      {
+        source        = "${path.module}/templates/network-object.yaml.tftpl",
+        template_vars = { name = network_info.subnetwork }
+      }
+    ]
+  ])
 }
 
-resource "kubectl_manifest" "additional_net_params" {
-  for_each = { for idx, network_info in var.additional_networks : idx => network_info }
+module "kubectl_apply" {
+  source = "../../management/kubectl-apply"
 
-  depends_on = [data.google_container_cluster.existing_gke_cluster]
+  cluster_id = data.google_container_cluster.existing_gke_cluster.id
+  project_id = var.project_id
 
-  yaml_body = <<YAML
-apiVersion: networking.gke.io/v1
-kind: GKENetworkParamSet
-metadata:
-  name: vpc${each.key + 1}
-spec:
-  vpc: ${each.value.network}
-  vpcSubnet: ${each.value.subnetwork}
-  deviceMode: NetDevice
-YAML
-
-  provider = kubectl
-}
-
-resource "kubectl_manifest" "additional_nets" {
-  for_each = { for idx, network_info in var.additional_networks : idx => network_info }
-
-  depends_on = [data.google_container_cluster.existing_gke_cluster, kubectl_manifest.additional_net_params]
-
-  yaml_body = <<YAML
-apiVersion: networking.gke.io/v1
-kind: Network
-metadata:
-  name: vpc${each.key + 1}
-spec:
-  parametersRef:
-    group: networking.gke.io
-    kind: GKENetworkParamSet
-    name: vpc${each.key + 1}
-  type: Device
-YAML
-
-  provider = kubectl
+  apply_manifests = concat(local.apply_manifests_non_rdma_networks, local.apply_manifests_rdma_networks)
 }

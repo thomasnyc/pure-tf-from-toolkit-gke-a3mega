@@ -31,9 +31,17 @@ variable "zones" {
 }
 
 variable "name" {
-  description = "The name of the node pool. If left blank, will default to the machine type."
+  description = <<-EOD
+    The name of the node pool. If not set, automatically populated by machine type and module id (unique blueprint-wide) as suffix.
+    If setting manually, ensure a unique value across all gke-node-pools.
+    EOD
   type        = string
   default     = null
+}
+
+variable "internal_ghpc_module_id" {
+  description = "DO NOT SET THIS MANUALLY. Automatically populates with module id (unique blueprint-wide)."
+  type        = string
 }
 
 variable "machine_type" {
@@ -71,16 +79,32 @@ variable "guest_accelerator" {
   type = list(object({
     type  = optional(string)
     count = optional(number, 0)
-    gpu_driver_installation_config = optional(list(object({
+    gpu_driver_installation_config = optional(object({
       gpu_driver_version = string
-    })))
+    }), { gpu_driver_version = "DEFAULT" })
     gpu_partition_size = optional(string)
-    gpu_sharing_config = optional(list(object({
-      gpu_sharing_strategy       = optional(string)
-      max_shared_clients_per_gpu = optional(number)
-    })))
+    gpu_sharing_config = optional(object({
+      gpu_sharing_strategy       = string
+      max_shared_clients_per_gpu = number
+    }))
   }))
-  default = null
+  default  = []
+  nullable = false
+
+  validation {
+    condition     = alltrue([for ga in var.guest_accelerator : ga.count != null])
+    error_message = "var.guest_accelerator[*].count cannot be null"
+  }
+
+  validation {
+    condition     = alltrue([for ga in var.guest_accelerator : ga.count >= 0])
+    error_message = "var.guest_accelerator[*].count must never be negative"
+  }
+
+  validation {
+    condition     = alltrue([for ga in var.guest_accelerator : ga.gpu_driver_installation_config != null])
+    error_message = "var.guest_accelerator[*].gpu_driver_installation_config must not be null; leave unset to enable GKE to select default GPU driver installation"
+  }
 }
 
 variable "image_type" {
@@ -222,11 +246,7 @@ variable "taints" {
     value  = any
     effect = string
   }))
-  default = [{
-    key    = "user-workload"
-    value  = true
-    effect = "NO_SCHEDULE"
-  }]
+  default = []
 }
 
 variable "labels" {
@@ -316,6 +336,7 @@ variable "additional_networks" {
       subnetwork_range_name = string
     }))
   }))
+  nullable = false
 }
 
 variable "reservation_affinity" {
@@ -352,4 +373,45 @@ variable "host_maintenance_interval" {
     condition     = contains(["", "PERIODIC", "AS_NEEDED"], var.host_maintenance_interval)
     error_message = "Invalid host_maintenance_interval value. Must be PERIODIC, AS_NEEDED or the empty string"
   }
+}
+
+variable "initial_node_count" {
+  description = "The initial number of nodes for the pool. In regional clusters, this is the number of nodes per zone. Changing this setting after node pool creation will not make any effect. It cannot be set with static_node_count and must be set to a value between autoscaling_total_min_nodes and autoscaling_total_max_nodes."
+  type        = number
+  default     = null
+}
+
+variable "gke_version" {
+  description = "GKE version"
+  type        = string
+}
+
+variable "max_pods_per_node" {
+  description = "The maximum number of pods per node in this node pool. This will force replacement."
+  type        = number
+  default     = null
+}
+
+variable "upgrade_settings" {
+  description = <<-EOT
+  Defines node pool upgrade settings. It is highly recommended that you define all max_surge and max_unavailable.
+  If max_surge is not specified, it would be set to a default value of 0.
+  If max_unavailable is not specified, it would be set to a default value of 1.  
+  EOT
+  type = object({
+    strategy        = string
+    max_surge       = optional(number)
+    max_unavailable = optional(number)
+  })
+  default = {
+    strategy        = "SURGE"
+    max_surge       = 0
+    max_unavailable = 1
+  }
+}
+
+variable "run_workload_script" {
+  description = "Whether execute the script to create a sample workload and inject rxdm sidecar into workload. Currently, implemented for A3-Highgpu and A3-Megagpu only."
+  type        = bool
+  default     = true
 }

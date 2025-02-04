@@ -7,6 +7,32 @@ mounted to one or more compute VMs.
 For more information on this and other network storage options in the Cluster
 Toolkit, see the extended [Network Storage documentation](../../../docs/network_storage.md).
 
+### Deletion protection
+
+We recommend considering enabling [Filestore deletion protection][fdp]. Deletion
+protection will prevent unintentional deletion of an entire Filestore instance.
+It does not prevent deletion of files within the Filestore instance when mounted
+by a VM. It is not available on some [tiers](#filestore-tiers), including the
+default BASIC\_HDD tier or BASIC\_SSD tier. Follow the documentation link for
+up to date details.
+
+Usage can be enabled in a blueprint with, for example:
+
+```yaml
+  - id: homefs
+    source: modules/file-system/filestore
+    use: [network]
+    settings:
+      deletion_protection:
+        enabled: true
+        reason: Avoid data loss
+      filestore_tier: ZONAL
+      local_mount: /home
+      size_gb: 1024
+```
+
+[fdp]: https://cloud.google.com/filestore/docs/deletion-protection
+
 ### Filestore tiers
 
 At the time of writing, Filestore supports 5 [tiers of service][tiers] that are
@@ -149,14 +175,14 @@ limitations under the License.
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 0.14.0 |
-| <a name="requirement_google"></a> [google](#requirement\_google) | >= 4.19 |
+| <a name="requirement_google"></a> [google](#requirement\_google) | >= 6.4 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | ~> 3.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_google"></a> [google](#provider\_google) | >= 4.19 |
+| <a name="provider_google"></a> [google](#provider\_google) | >= 6.4 |
 | <a name="provider_random"></a> [random](#provider\_random) | ~> 3.0 |
 
 ## Modules
@@ -175,6 +201,7 @@ No modules.
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | <a name="input_connect_mode"></a> [connect\_mode](#input\_connect\_mode) | Used to select mode - supported values DIRECT\_PEERING and PRIVATE\_SERVICE\_ACCESS. | `string` | `"DIRECT_PEERING"` | no |
+| <a name="input_deletion_protection"></a> [deletion\_protection](#input\_deletion\_protection) | Configure Filestore instance deletion protection | <pre>object({<br/>    enabled = optional(bool, false)<br/>    reason  = optional(string)<br/>  })</pre> | <pre>{<br/>  "enabled": false<br/>}</pre> | no |
 | <a name="input_deployment_name"></a> [deployment\_name](#input\_deployment\_name) | Name of the HPC deployment, used as name of the filestore instance if no name is specified. | `string` | n/a | yes |
 | <a name="input_filestore_share_name"></a> [filestore\_share\_name](#input\_filestore\_share\_name) | Name of the file system share on the instance. | `string` | `"nfsshare"` | no |
 | <a name="input_filestore_tier"></a> [filestore\_tier](#input\_filestore\_tier) | The service tier of the instance. | `string` | `"BASIC_HDD"` | no |
@@ -182,11 +209,11 @@ No modules.
 | <a name="input_local_mount"></a> [local\_mount](#input\_local\_mount) | Mountpoint for this filestore instance. Note: If set to the same as the `filestore_share_name`, it will trigger a known Slurm bug ([troubleshooting](../../../docs/slurm-troubleshooting.md)). | `string` | `"/shared"` | no |
 | <a name="input_mount_options"></a> [mount\_options](#input\_mount\_options) | NFS mount options to mount file system. | `string` | `"defaults,_netdev"` | no |
 | <a name="input_name"></a> [name](#input\_name) | The resource name of the instance. | `string` | `null` | no |
-| <a name="input_network_id"></a> [network\_id](#input\_network\_id) | The ID of the GCE VPC network to which the instance is connected given in the format:<br>`projects/<project_id>/global/networks/<network_name>`" | `string` | n/a | yes |
-| <a name="input_nfs_export_options"></a> [nfs\_export\_options](#input\_nfs\_export\_options) | Define NFS export options. | <pre>list(object({<br>    access_mode = optional(string)<br>    ip_ranges   = optional(list(string))<br>    squash_mode = optional(string)<br>  }))</pre> | `[]` | no |
+| <a name="input_network_id"></a> [network\_id](#input\_network\_id) | The ID of the GCE VPC network to which the instance is connected given in the format:<br/>`projects/<project_id>/global/networks/<network_name>`" | `string` | n/a | yes |
+| <a name="input_nfs_export_options"></a> [nfs\_export\_options](#input\_nfs\_export\_options) | Define NFS export options. | <pre>list(object({<br/>    access_mode = optional(string)<br/>    ip_ranges   = optional(list(string))<br/>    squash_mode = optional(string)<br/>  }))</pre> | `[]` | no |
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | ID of project in which Filestore instance will be created. | `string` | n/a | yes |
 | <a name="input_region"></a> [region](#input\_region) | Location for Filestore instances at Enterprise tier. | `string` | n/a | yes |
-| <a name="input_reserved_ip_range"></a> [reserved\_ip\_range](#input\_reserved\_ip\_range) | Reserved IP range for Filestore instance. Users are encouraged to set to null<br>for automatic selection. If supplied, it must be:<br><br>CIDR format when var.connect\_mode == "DIRECT\_PEERING"<br>Named IP Range when var.connect\_mode == "PRIVATE\_SERVICE\_ACCESS"<br><br>See Cloud documentation for more details:<br><br>https://cloud.google.com/filestore/docs/creating-instances#configure_a_reserved_ip_address_range | `string` | `null` | no |
+| <a name="input_reserved_ip_range"></a> [reserved\_ip\_range](#input\_reserved\_ip\_range) | Reserved IP range for Filestore instance. Users are encouraged to set to null<br/>for automatic selection. If supplied, it must be:<br/><br/>CIDR format when var.connect\_mode == "DIRECT\_PEERING"<br/>Named IP Range when var.connect\_mode == "PRIVATE\_SERVICE\_ACCESS"<br/><br/>See Cloud documentation for more details:<br/><br/>https://cloud.google.com/filestore/docs/creating-instances#configure_a_reserved_ip_address_range | `string` | `null` | no |
 | <a name="input_size_gb"></a> [size\_gb](#input\_size\_gb) | Storage size of the filestore instance in GB. | `number` | `1024` | no |
 | <a name="input_zone"></a> [zone](#input\_zone) | Location for Filestore instances below Enterprise tier. | `string` | n/a | yes |
 
@@ -198,6 +225,6 @@ No modules.
 | <a name="output_filestore_id"></a> [filestore\_id](#output\_filestore\_id) | An identifier for the resource with format `projects/{{project}}/locations/{{location}}/instances/{{name}}` |
 | <a name="output_install_nfs_client"></a> [install\_nfs\_client](#output\_install\_nfs\_client) | Script for installing NFS client |
 | <a name="output_install_nfs_client_runner"></a> [install\_nfs\_client\_runner](#output\_install\_nfs\_client\_runner) | Runner to install NFS client using the startup-script module |
-| <a name="output_mount_runner"></a> [mount\_runner](#output\_mount\_runner) | Runner to mount the file-system using an ansible playbook. The startup-script<br>module will automatically handle installation of ansible.<br>- id: example-startup-script<br>  source: modules/scripts/startup-script<br>  settings:<br>    runners:<br>    - $(your-fs-id.mount\_runner)<br>... |
+| <a name="output_mount_runner"></a> [mount\_runner](#output\_mount\_runner) | Runner to mount the file-system using an ansible playbook. The startup-script<br/>module will automatically handle installation of ansible.<br/>- id: example-startup-script<br/>  source: modules/scripts/startup-script<br/>  settings:<br/>    runners:<br/>    - $(your-fs-id.mount\_runner)<br/>... |
 | <a name="output_network_storage"></a> [network\_storage](#output\_network\_storage) | Describes a filestore instance. |
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

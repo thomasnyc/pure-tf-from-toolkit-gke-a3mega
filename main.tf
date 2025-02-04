@@ -17,6 +17,7 @@
 module "network1" {
   source          = "./modules/embedded/modules/network/vpc"
   deployment_name = var.deployment_name
+  labels          = var.labels
   project_id      = var.project_id
   region          = var.region
   secondary_ranges = {
@@ -56,6 +57,7 @@ module "gke_cluster" {
   project_id           = var.project_id
   region               = var.region
   subnetwork_self_link = module.network1.subnetwork_self_link
+  zone                 = var.zone
 }
 
 module "a3-megagpu_pool" {
@@ -63,6 +65,8 @@ module "a3-megagpu_pool" {
   additional_networks         = flatten([module.gpunets.additional_networks])
   autoscaling_total_min_nodes = 2
   cluster_id                  = module.gke_cluster.cluster_id
+  gke_version                 = module.gke_cluster.gke_version
+  internal_ghpc_module_id     = "a3-megagpu_pool"
   labels                      = var.labels
   machine_type                = "a3-megagpu-8g"
   project_id                  = var.project_id

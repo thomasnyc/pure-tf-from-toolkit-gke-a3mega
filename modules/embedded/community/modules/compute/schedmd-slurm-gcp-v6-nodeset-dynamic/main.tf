@@ -17,7 +17,16 @@ locals {
   labels = merge(var.labels, { ghpc_module = "schedmd-slurm-gcp-v6-nodeset-dynamic", ghpc_role = "compute" })
 }
 
+module "gpu" {
+  source = "../../../../modules/internal/gpu-definition"
+
+  machine_type      = var.machine_type
+  guest_accelerator = var.guest_accelerator
+}
+
 locals {
+  guest_accelerator = module.gpu.guest_accelerator
+
   nodeset_name = substr(replace(var.name, "/[^a-z0-9]/", ""), 0, 14)
   feature      = coalesce(var.feature, local.nodeset_name)
 
@@ -50,18 +59,13 @@ locals {
   access_config        = length(var.access_config) == 0 ? local.public_access_config : var.access_config
 
   service_account = {
-    email  = coalesce(var.service_account_email, data.google_compute_default_service_account.default.email)
+    email  = var.service_account_email
     scopes = var.service_account_scopes
   }
 }
 
-data "google_compute_default_service_account" "default" {
-  project = var.project_id
-}
-
-
 module "slurm_nodeset_template" {
-  source = "github.com/GoogleCloudPlatform/slurm-gcp.git//terraform/slurm_cluster/modules/slurm_instance_template?ref=6.6.2"
+  source = "../../internal/slurm-gcp/instance_template"
 
   project_id          = var.project_id
   region              = var.region
