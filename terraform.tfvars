@@ -25,8 +25,8 @@ labels = {
   ghpc_deployment = "gke-a3-tl-mega"
 }
 
-project_id = "thomashk-mig"
+project_id = "gce-h100"
 
-region = "us-central1"
+region = "us-east5"
 
-zone = "us-central1-c"
+zone = "us-east5-a"

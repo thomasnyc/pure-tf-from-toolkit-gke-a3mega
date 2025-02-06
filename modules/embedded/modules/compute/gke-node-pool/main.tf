@@ -337,7 +337,7 @@ locals {
 resource "null_resource" "install_dependencies" {
   count = var.run_workload_script && contains(local.supported_machine_types_for_install_dependencies, var.machine_type) ? 1 : 0
   provisioner "local-exec" {
-    command = "pip3 install pyyaml"
+    command = "/usr/bin/pip3 install pyyaml --break-system-packages"
   }
 }
 
